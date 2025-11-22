@@ -353,7 +353,6 @@ def unsupported_media_type(e):
 
 if __name__ == '__main__':
     # This only runs when called directly with 'python app.py'
-    # Gunicorn will import the app without executing this block
     
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
