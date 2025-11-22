@@ -14,6 +14,10 @@ from typing import Dict, Any
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Make ModelWrapper available globally for joblib deserialization
+import sys
+import __main__
+
 class ModelWrapper:
     """
     Wrapper class for the exported model that includes inference functionality.
@@ -66,6 +70,10 @@ class ModelWrapper:
     def get_metadata(self):
         """Get model metadata."""
         return self.metadata
+
+# Make ModelWrapper available in __main__ for joblib compatibility
+__main__.ModelWrapper = ModelWrapper
+sys.modules['__main__'].ModelWrapper = ModelWrapper
 
 # Configuration
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'best_model.joblib')
@@ -151,6 +159,15 @@ def load_model():
         
         # Load the model wrapper using joblib
         print("Loading PyTorch model from joblib file...")
+        
+        # Fix for Gunicorn module name issue
+        import sys
+        import __main__
+        
+        # Make ModelWrapper available in __main__ module for joblib
+        if not hasattr(__main__, 'ModelWrapper'):
+            __main__.ModelWrapper = ModelWrapper
+        
         model_wrapper = joblib.load(MODEL_PATH)
         
         # Extract the actual model from the wrapper
