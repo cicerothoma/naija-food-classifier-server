@@ -81,6 +81,17 @@ def load_class_names():
     """Load class names from dish_list.txt"""
     global class_names
     try:
+        print(f"Looking for dish list at: {DISH_LIST_PATH}")
+        print(f"File exists: {os.path.exists(DISH_LIST_PATH)}")
+        
+        if not os.path.exists(DISH_LIST_PATH):
+            print(f"Dish list file not found at {DISH_LIST_PATH}")
+            # List files in current directory for debugging
+            current_dir = os.path.dirname(__file__) or '.'
+            files = os.listdir(current_dir)
+            print(f"Files in {current_dir}: {files}")
+            return False
+        
         with open(DISH_LIST_PATH, 'r', encoding='utf-8') as f:
             class_names = [line.strip() for line in f.readlines() if line.strip()]
         print(f"Loaded {len(class_names)} food classes")
@@ -93,8 +104,15 @@ def load_model():
     """Load the PyTorch model from joblib file"""
     global model, class_names
     try:
+        print(f"Looking for model at: {MODEL_PATH}")
+        print(f"File exists: {os.path.exists(MODEL_PATH)}")
+        
         if not os.path.exists(MODEL_PATH):
-            print(f"Model file {MODEL_PATH} not found")
+            print(f"Model file not found at {MODEL_PATH}")
+            # List files in current directory for debugging
+            current_dir = os.path.dirname(__file__) or '.'
+            files = os.listdir(current_dir)
+            print(f"Files in {current_dir}: {files}")
             return False
         
         # Load the model wrapper using joblib
@@ -120,6 +138,8 @@ def load_model():
         
     except Exception as e:
         print(f"Error loading model from joblib: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def setup_transforms():
@@ -296,19 +316,29 @@ def unsupported_media_type(e):
 
 if __name__ == '__main__':
     print("Starting Naija Food Classification Server...")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"Script directory: {os.path.dirname(__file__)}")
     
     # Initialize the application
     setup_transforms()
     
-    if not load_class_names():
-        print("Failed to load class names. Exiting.")
-        exit(1)
+    # Try to load class names (don't exit if it fails in production)
+    classes_loaded = load_class_names()
+    if not classes_loaded:
+        print("WARNING: Failed to load class names. API will have limited functionality.")
     
-    if not load_model():
-        print("Failed to load model. Exiting.")
-        exit(1)
+    # Try to load model (don't exit if it fails in production)
+    model_loaded = load_model()
+    if not model_loaded:
+        print("WARNING: Failed to load model. Prediction endpoints will not work.")
     
-    print(f"Server ready with {len(class_names)} food classes!")
+    if classes_loaded and model_loaded:
+        print(f"✅ Server ready with {len(class_names)} food classes!")
+    else:
+        print("⚠️  Server started with limited functionality:")
+        print(f"   - Classes loaded: {classes_loaded}")
+        print(f"   - Model loaded: {model_loaded}")
+    
     print("Available endpoints:")
     print("  GET  / - Health check")
     print("  GET  /classes - List all food classes")
