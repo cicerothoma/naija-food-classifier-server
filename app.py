@@ -111,9 +111,6 @@ def initialize_app():
     
     return classes_loaded, model_loaded
 
-# Initialize when module is imported (works with both direct run and Gunicorn)
-initialize_app()
-
 def load_class_names():
     """Load class names from dish_list.txt"""
     global class_names
@@ -350,6 +347,9 @@ def too_large(e):
 def unsupported_media_type(e):
   """Handle unsupported media type error"""
   return jsonify({'error': 'Unsupported media type'}), 415
+
+# Initialize when module is imported
+initialize_app()
 
 if __name__ == '__main__':
     # This only runs when called directly with 'python app.py'
