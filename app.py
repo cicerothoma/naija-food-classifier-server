@@ -68,8 +68,8 @@ class ModelWrapper:
         return self.metadata
 
 # Configuration
-MODEL_PATH = 'best_model.joblib'
-DISH_LIST_PATH = 'dish_list.txt'
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'best_model.joblib')
+DISH_LIST_PATH = os.path.join(os.path.dirname(__file__), 'dish_list.txt')
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Global variables
