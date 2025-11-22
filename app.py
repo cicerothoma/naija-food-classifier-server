@@ -77,6 +77,43 @@ model = None
 class_names = []
 transform = None
 
+def initialize_app():
+    """Initialize the application components"""
+    print("Initializing Naija Food Classification Server...")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"Script directory: {os.path.dirname(__file__)}")
+    
+    # Initialize transforms
+    setup_transforms()
+    
+    # Try to load class names (don't exit if it fails in production)
+    classes_loaded = load_class_names()
+    if not classes_loaded:
+        print("WARNING: Failed to load class names. API will have limited functionality.")
+    
+    # Try to load model (don't exit if it fails in production)
+    model_loaded = load_model()
+    if not model_loaded:
+        print("WARNING: Failed to load model. Prediction endpoints will not work.")
+    
+    if classes_loaded and model_loaded:
+        print(f"✅ Server ready with {len(class_names)} food classes!")
+    else:
+        print("⚠️  Server started with limited functionality:")
+        print(f"   - Classes loaded: {classes_loaded}")
+        print(f"   - Model loaded: {model_loaded}")
+    
+    print("Available endpoints:")
+    print("  GET  / - Health check")
+    print("  GET  /classes - List all food classes")
+    print("  POST /predict - Predict from image file")
+    print("  POST /predict_base64 - Predict from base64 image")
+    
+    return classes_loaded, model_loaded
+
+# Initialize when module is imported (works with both direct run and Gunicorn)
+initialize_app()
+
 def load_class_names():
     """Load class names from dish_list.txt"""
     global class_names
@@ -206,150 +243,123 @@ def predict_image(input_data):
 
 @app.route('/', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'message': 'Naija Food Classification API is running!',
-        'model_loaded': model is not None,
-        'classes_loaded': len(class_names) > 0,
-        'total_classes': len(class_names)
-    })
+  """Health check endpoint"""
+  return jsonify({
+    'status': 'healthy',
+    'message': 'Naija Food Classification API is running!',
+    'model_loaded': model is not None,
+    'classes_loaded': len(class_names) > 0,
+    'total_classes': len(class_names)
+  })
 
 @app.route('/classes', methods=['GET'])
 def get_classes():
-    """Get list of all food classes"""
-    return jsonify({
-        'classes': class_names,
-        'total_classes': len(class_names)
-    })
+  """Get list of all food classes"""
+  return jsonify({
+    'classes': class_names,
+    'total_classes': len(class_names)
+  })
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """Predict food class from uploaded image"""
-    try:
-        # Check if model is loaded
-        if model is None:
-            return jsonify({'error': 'Model not loaded'}), 500
-        
-        # Check if image is provided
-        if 'image' not in request.files:
-            return jsonify({'error': 'No image file provided'}), 400
-        
-        file = request.files['image']
-        if file.filename == '':
-            return jsonify({'error': 'No image file selected'}), 400
-        
-        # Read and process image
-        image_bytes = file.read()
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Preprocess image
-        processed_data = preprocess_image(image)
-        if processed_data is None:
-            return jsonify({'error': 'Failed to preprocess image'}), 500
-        
-        # Make prediction
-        predictions = predict_image(processed_data)
-        if predictions is None:
-            return jsonify({'error': 'Failed to make prediction'}), 500
-        
-        return jsonify({
-            'success': True,
-            'predictions': predictions,
-            'top_prediction': predictions[0] if predictions else None
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+  """Predict food class from uploaded image"""
+  try:
+    # Check if model is loaded
+    if model is None:
+      return jsonify({'error': 'Model not loaded'}), 500
+    
+    # Check if image is provided
+    if 'image' not in request.files:
+      return jsonify({'error': 'No image file provided'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+      return jsonify({'error': 'No image file selected'}), 400
+    
+    # Read and process image
+    image_bytes = file.read()
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    # Preprocess image
+    processed_data = preprocess_image(image)
+    if processed_data is None:
+      return jsonify({'error': 'Failed to preprocess image'}), 500
+    
+    # Make prediction
+    predictions = predict_image(processed_data)
+    if predictions is None:
+      return jsonify({'error': 'Failed to make prediction'}), 500
+    
+    return jsonify({
+      'success': True,
+      'predictions': predictions,
+      'top_prediction': predictions[0] if predictions else None
+    })
+      
+  except Exception as e:
+    return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/predict_base64', methods=['POST'])
 def predict_base64():
-    """Predict food class from base64 encoded image"""
-    try:
-        # Check if model is loaded
-        if model is None:
-            return jsonify({'error': 'Model not loaded'}), 500
-        
-        # Get JSON data
-        data = request.get_json()
-        if not data or 'image' not in data:
-            return jsonify({'error': 'No base64 image data provided'}), 400
-        
-        # Decode base64 image
-        image_data = data['image']
-        # Remove data URL prefix if present
-        if ',' in image_data:
-            image_data = image_data.split(',')[1]
-        
-        # Decode base64
-        image_bytes = base64.b64decode(image_data)
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Preprocess image
-        processed_data = preprocess_image(image)
-        if processed_data is None:
-            return jsonify({'error': 'Failed to preprocess image'}), 500
-        
-        # Make prediction
-        predictions = predict_image(processed_data)
-        if predictions is None:
-            return jsonify({'error': 'Failed to make prediction'}), 500
-        
-        return jsonify({
-            'success': True,
-            'predictions': predictions,
-            'top_prediction': predictions[0] if predictions else None
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+  """Predict food class from base64 encoded image"""
+  try:
+    # Check if model is loaded
+    if model is None:
+      return jsonify({'error': 'Model not loaded'}), 500
+    
+    # Get JSON data
+    data = request.get_json()
+    if not data or 'image' not in data:
+      return jsonify({'error': 'No base64 image data provided'}), 400
+    
+    # Decode base64 image
+    image_data = data['image']
+    # Remove data URL prefix if present
+    if ',' in image_data:
+      image_data = image_data.split(',')[1]
+    
+    # Decode base64
+    image_bytes = base64.b64decode(image_data)
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    # Preprocess image
+    processed_data = preprocess_image(image)
+    if processed_data is None:
+      return jsonify({'error': 'Failed to preprocess image'}), 500
+    
+    # Make prediction
+    predictions = predict_image(processed_data)
+    if predictions is None:
+      return jsonify({'error': 'Failed to make prediction'}), 500
+    
+    return jsonify({
+      'success': True,
+      'predictions': predictions,
+      'top_prediction': predictions[0] if predictions else None
+    })
+      
+  except Exception as e:
+    return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.errorhandler(413)
 def too_large(e):
-    """Handle file too large error"""
-    return jsonify({'error': 'File too large'}), 413
+  """Handle file too large error"""
+  return jsonify({'error': 'File too large'}), 413
 
 @app.errorhandler(415)
 def unsupported_media_type(e):
-    """Handle unsupported media type error"""
-    return jsonify({'error': 'Unsupported media type'}), 415
+  """Handle unsupported media type error"""
+  return jsonify({'error': 'Unsupported media type'}), 415
 
 if __name__ == '__main__':
-    print("Starting Naija Food Classification Server...")
-    print(f"Working directory: {os.getcwd()}")
-    print(f"Script directory: {os.path.dirname(__file__)}")
+    # This only runs when called directly with 'python app.py'
+    # Gunicorn will import the app without executing this block
     
-    # Initialize the application
-    setup_transforms()
-    
-    # Try to load class names (don't exit if it fails in production)
-    classes_loaded = load_class_names()
-    if not classes_loaded:
-        print("WARNING: Failed to load class names. API will have limited functionality.")
-    
-    # Try to load model (don't exit if it fails in production)
-    model_loaded = load_model()
-    if not model_loaded:
-        print("WARNING: Failed to load model. Prediction endpoints will not work.")
-    
-    if classes_loaded and model_loaded:
-        print(f"✅ Server ready with {len(class_names)} food classes!")
-    else:
-        print("⚠️  Server started with limited functionality:")
-        print(f"   - Classes loaded: {classes_loaded}")
-        print(f"   - Model loaded: {model_loaded}")
-    
-    print("Available endpoints:")
-    print("  GET  / - Health check")
-    print("  GET  /classes - List all food classes")
-    print("  POST /predict - Predict from image file")
-    print("  POST /predict_base64 - Predict from base64 image")
-    
-    # Run the Flask app
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     if debug_mode:
         print("Running in DEBUG mode - not for production!")
     
+    print(f"Starting Flask development server on port {port}...")
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
